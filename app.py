@@ -22,7 +22,7 @@ load_dotenv()
 import telegram  # noqa: E402  (posle load_dotenv da procita .env)
 from igre import SPORTOVI  # noqa: E402
 from kladionice import SAJTOVI, Citac  # noqa: E402
-from pracenje import Pracenje  # noqa: E402
+from pracenje import Pracenje, upisi_ciklus  # noqa: E402
 from pretraga import uporedi  # noqa: E402
 
 INTERVAL_DAN = int(float(os.getenv("INTERVAL_MIN", "5")) * 60)
@@ -74,25 +74,41 @@ def ciklus():
                   u_toku=False)
     log(f"osvezeno: {len(mecevi)} zajednickih utakmica, arbitraza {len(arbitraze)}, "
         f"skoro {len(skoro)} | utakmica po sajtu {po_sajtu}")
+    upisi_ciklus("ciklus", utakmica=len(mecevi), arbitraza=len(arbitraze),
+                 skoro=len(skoro), po_sajtu=po_sajtu, zahteva_ukupno=citac.ukupno_zahteva)
 
 
 def petlja():
     danas = datetime.now().strftime("%Y-%m-%d")
     # ako je program pokrenut posle jutarnjeg termina - izvestaj tek sutra
     poslednji_izvestaj = danas if datetime.now().strftime("%H:%M") >= JUTRO else None
+    upisi_ciklus("pokrenuto", interval_min=INTERVAL_DAN // 60, noc_min=INTERVAL_NOC // 60)
+    rupe = []                 # periodi kad program nije radio (sleep) - za jutarnji izvestaj
+    prethodni_pocetak = None
 
     while True:
+        pocetak = time.time()
+        # ako je od proslog kruga proslo mnogo vise od intervala -> racunar je spavao
+        if prethodni_pocetak and pocetak - prethodni_pocetak > INTERVAL_NOC + 300:
+            minuta = round((pocetak - prethodni_pocetak) / 60, 1)
+            od = datetime.fromtimestamp(prethodni_pocetak).isoformat(timespec="seconds")
+            rupe.append({"od": od, "minuta": minuta})
+            upisi_ciklus("rupa", od=od, minuta=minuta)
+            log(f"UPOZORENJE: program nije radio ~{minuta} min (racunar je verovatno spavao)")
+        prethodni_pocetak = pocetak
         try:
             ciklus()
         except Exception as e:  # da jedna greska ne ugasi nocni rad
             stanje["u_toku"] = False
             log(f"GRESKA u ciklusu: {e!r}")
+            upisi_ciklus("greska", poruka=repr(e))
         poslednji = time.time()
 
         danas = datetime.now().strftime("%Y-%m-%d")
         if datetime.now().strftime("%H:%M") >= JUTRO and poslednji_izvestaj != danas:
-            pracenje.jutarnji_izvestaj(stanje["arbitraze"])
+            pracenje.jutarnji_izvestaj(stanje["arbitraze"], rupe)
             poslednji_izvestaj = danas
+            rupe = []
             log("poslat jutarnji izvestaj")
 
         stanje["sledece"] = poslednji + interval()

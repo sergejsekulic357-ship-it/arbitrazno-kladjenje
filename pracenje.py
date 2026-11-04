@@ -15,6 +15,15 @@ from arbitraza import rasporedi_ulog
 
 FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "podaci")
 LOG = os.path.join(FOLDER, "arbitraze.jsonl")
+CIKLUSI = os.path.join(FOLDER, "ciklusi.jsonl")   # svaki krug povlacenja (da se vide rupe/sleep)
+
+
+def upisi_ciklus(dogadjaj, **podaci):
+    """Kratak zapis svakog kruga. Ako racunar zaspi, ovde se vidi rupa u vremenu."""
+    os.makedirs(FOLDER, exist_ok=True)
+    with open(CIKLUSI, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"vreme": datetime.now().isoformat(timespec="seconds"),
+                            "dogadjaj": dogadjaj, **podaci}, ensure_ascii=False) + "\n")
 
 
 def _vreme(ms):
@@ -72,8 +81,12 @@ class Pracenje:
                 # samo u zapisnik - na Telegram idu samo nove arbitraze i jutarnji izvestaj
                 self.log(f"nestala: {z['a']['naziv']} {z['a']['igra']} (trajala ~{trajanje} min)")
 
-    def jutarnji_izvestaj(self, arbitraze_sada):
+    def jutarnji_izvestaj(self, arbitraze_sada, rupe=None):
         tekst = [f"☀️ <b>Jutarnji izvestaj</b>\nPreko noci nadjeno arbitraza: {len(self.noc)}"]
+        if rupe:
+            ukupno = round(sum(r["minuta"] for r in rupe))
+            tekst.append(f"⚠️ Program nije radio ukupno ~{ukupno} min (racunar je verovatno "
+                         f"spavao) - noc nije cela pracena.")
         if arbitraze_sada:
             tekst.append(f"\n<b>I dalje vaze ({len(arbitraze_sada)}):</b>")
             for a in arbitraze_sada[:10]:
@@ -82,5 +95,6 @@ class Pracenje:
             tekst.append("Trenutno nema aktivnih arbitraza.")
         tekst.append("\n⚠️ Pre uplate proveri kvote na sajtu!")
         telegram.posalji("\n".join(tekst))
-        self._upisi("jutarnji_izvestaj", nadjeno_noc=len(self.noc), aktivno=len(arbitraze_sada))
+        self._upisi("jutarnji_izvestaj", nadjeno_noc=len(self.noc), aktivno=len(arbitraze_sada),
+                    rupe_min=round(sum(r["minuta"] for r in rupe or [])))
         self.noc = []
