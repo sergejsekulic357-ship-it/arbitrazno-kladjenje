@@ -86,9 +86,10 @@ Zapis arbitraza: `podaci/arbitraze.jsonl` (dogadjaji: nova / nestala / jutarnji_
 | Kladionica | Stanje |
 |---|---|
 | MaxBet, Soccer, MerkurXtip, Oktagon, Brazilbet, Betole, 365.rs | rade - isti softver ("ibet"), jedan citac, svi sportovi |
-| Admiral, Superbet, Balkanbet | rade - SAMO fudbal (1X2; Balkanbet i dupla sansa). Ostali sportovi cekaju proveru naziva igara (`PROVERENI_SPORTOVI`) |
+| Admiral, Superbet, Balkanbet | rade - svi sportovi osim kosarke, samo konacan ishod/pobednik (+ dupla sansa gde postoji). Nazivi provereni 2026-11-04 |
 | Mozzart, Meridian | zastita (Cloudflare / token sesije) - NE zaobilaziti. U aplikaciji su "proveri rucno" |
-| Volcano (xtreme.bet), Ambassador + Tasbet (Evona API), Starbet, King | javno dostupni, jos nisu dodati |
+| Ambassador + Tasbet (Evona API) | API radi (zaglavlja `TerminalId: 1`, `LanguageId: srl`, `Device-Type: desktop`; najvise 100 meceva po zahtevu), ALI Betradar ID ima samo ~4% meceva (sopstveni izvor "ExeFeed") -> bez uparivanja po imenu ne ide. Za sad "proveri rucno" |
+| Volcano (xtreme.bet), Starbet, King | javno dostupni, jos nisu istrazeni do kraja |
 | 1xBet, Betwinner, Vivatbet, bet365 | ne mogu se citati obicnim putem |
 | Pinnbet | nije na spisku licenciranih; Lutrija nema sport; MrBit samo kazino |
 
@@ -101,7 +102,9 @@ Sportovi: S fudbal, B kosarka, T tenis, H hokej, HB rukomet, V odbojka, TT stoni
 - Superbet: `production-superbet-offer-rs.freetls.fastly.net/.../subscription/sr-Latn-RS/prematch` je TOK (SSE) -
   cita se prva poruka (ceo snimak) pa se veza zatvara. Datumi zaokruzeni na sat, inace 400.
 - Balkanbet (NSoft): `sports-sm-distribution-api.de-2.nsoftcdn.com/api/v1/events`, skraceni kljucevi (`_mapping`),
-  `rootEventId` = Betradar (provereno: 684/702 poklapanja). Market 6 = 1X2, 368 = 1X/12/X2.
+  `rootEventId` = Betradar (provereno: 684/702 poklapanja). Igre su brojevi (proverene na sajtu): 1X2 = 6 (S), 141 (H),
+  93 (HB); pobednik = 1955 (T), 84 (V, ishodi P1/P2), 2060 (TT); dupla sansa = 368 (S), 147 (H).
+- Admiral nazivi: "Konacan ishod", "Pobednik", "Dupla sansa"; NE "Pobednik (+OT+Pen)" ni "1.set - Pobednik".
 - Isti Betradar ID sa razlicitim vremenom pocetka (>30 min) se izbacuje iz poredjenja (`pretraga._isto_vreme`).
 
 ### Kodovi igara (isti na sva 4 sajta)
@@ -115,7 +118,7 @@ Nepotvrdjeno: 22, 24, 2xx, 5xxxx... Kosarka jos nije ukljucena (nema proverenih 
 
 ## 7. Sledeci koraci
 1. Pustiti aplikaciju sa 10 kladionica i analizirati `podaci/arbitraze.jsonl` i `podaci/ciklusi.jsonl`.
-2. Proveriti nazive igara za ostale sportove na Admiral/Superbet/Balkanbet (tenis, hokej...) pa prosiriti `PROVERENI_SPORTOVI`.
-3. Dodati Ambassador + Tasbet (isti Evona API), pa Volcano, Starbet, King.
+2. Odluka: uparivanje po imenu+vremenu za Ambassador/Tasbet (drugi izvor kvota = vise sansi, ali rizik laznih parova)?
+3. Istraziti Volcano, Starbet, King (imaju li Betradar ID).
 4. Potvrditi nazive ostalih igara (golovi sa granicom - Admiral ih jasno imenuje, GG/NG, hendikep, kosarka) i dodati u `igre.py`.
 5. Nov izgled stranice za pocetnike (predlog dat, ceka "kreni").

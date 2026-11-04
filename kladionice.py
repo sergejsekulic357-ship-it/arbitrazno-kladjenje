@@ -69,10 +69,12 @@ SPORT_ID = {
 
 # Sportovi u kojima su nazivi igara PROVERENI za nove sajtove. Ostali se dodaju
 # tek posle provere (lazna arbitraza = pravi gubitak).
+# Provereno 2026-11-04: nazivi iz podataka sajta + poredjenje kvota sa onim sto pise na sajtu.
+_SVI = ("S", "T", "H", "HB", "V", "TT")
 PROVERENI_SPORTOVI = {
-    "admiral": ("S",),
-    "superbet": ("S",),
-    "balkanbet": ("S",),
+    "admiral": _SVI,
+    "superbet": _SVI,
+    "balkanbet": _SVI,
 }
 
 HEADERS = {
@@ -131,7 +133,10 @@ def _prevedi(ishodi_po_igri):
 
 # Nazivi igara (malim slovima) koji znace konacan ishod / pobednika celog meca.
 # Dodaje se tek kad se naziv potvrdi na sajtu.
-KONACAN_ISHOD = {"konacan ishod", "konačan ishod"}
+KONACAN_ISHOD = {"konacan ishod", "konačan ishod",
+                 # pobednik celog meca (tenis, odbojka, stoni tenis). NE "1.set - pobednik"
+                 # i NE "pobednik (+ot+pen)" (hokej sa produzecima) - to su druge igre.
+                 "pobednik", "pobednik meča", "pobednik meca"}
 DUPLA_SANSA = {"dupla sansa", "dupla šansa"}
 
 
@@ -318,8 +323,11 @@ class Citac:
         return rezultat
 
     # ---------- Balkanbet (NSoft) ----------
-    # NSoft igre imaju broj; ime saznajemo iz ishoda. Market 6 = 1X2, 368 = dupla sansa
-    # (proveri se i po nazivima ishoda, pa pogresan broj ne moze da prodje).
+    # NSoft igre imaju samo broj. Brojevi su provereni poredjenjem sa kolonama na sajtu
+    # (2026-11-04). Uz to se proveravaju i nazivi ishoda, pa pogresan broj ne moze da prodje.
+    BB_KONACAN = {6: "S", 141: "H", 93: "HB",          # konacan ishod 1/X/2
+                  1955: "T", 84: "V", 2060: "TT"}      # pobednik 1/2 (P1/P2)
+    BB_DUPLA = {368: "S", 147: "H"}                     # 1X/12/X2
     def _balkanbet(self, sajt, sport):
         jezik = "sr-Latn"
         params = {
@@ -356,13 +364,13 @@ class Citac:
             for m in (e.get(E["markets"]) or {}).values():
                 if m.get(M["active"]) not in (1, True) or m.get(M["specialValues"]):
                     continue
-                ishodi = {o.get(O["name"]): o.get(O["odd"]) for o in m.get(M["outcomes"]) or []
-                          if o.get(O["active"]) in (1, True)}
+                ishodi = {{"P1": "1", "P2": "2"}.get(o.get(O["name"]), o.get(O["name"])): o.get(O["odd"])
+                          for o in m.get(M["outcomes"]) or [] if o.get(O["active"]) in (1, True)}
                 mid = m.get(M["marketId"])
                 nazivi.add(f"{mid}:{'/'.join(map(str, ishodi))}")
-                if mid == 6:
+                if self.BB_KONACAN.get(mid) == sport:
                     po_igri["konacan ishod"] = ishodi
-                elif mid == 368:
+                elif self.BB_DUPLA.get(mid) == sport:
                     po_igri["dupla sansa"] = ishodi
             domacin, gost = _dvoje(e.get(E["name"]) or "")
             rezultat.append({
