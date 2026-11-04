@@ -82,19 +82,27 @@ Zapis arbitraza: `podaci/arbitraze.jsonl` (dogadjaji: nova / nestala / jutarnji_
 - `telegram.py`, `telegram_podesi.py` - slanje poruka / jednokratno podesavanje
 - `app.py` - Flask server + pozadinska petlja; `static/index.html` - UI (arbitraze, sve kvote, kalkulator)
 
-### Kladionice (stanje 2026-11-04)
+### Kladionice (stanje 2026-11-04, spisak licenciranih: uis.gov.rs/rsc/spisakpnaziv)
 | Kladionica | Stanje |
 |---|---|
-| MaxBet, Soccer, MerkurXtip, Oktagon | rade - isti softver, jedan citac |
-| Admiral, Superbet | adresa kvota nije u HTML-u -> istraziti preko Chrome-a (network) |
-| Balkanbet | NSoft sistem (smprematch.7platform.net) -> Chrome |
-| Mozzart, Meridian | Cloudflare zastita - ne zaobilaziti, proveriti u Chrome-u ima li normalan put |
-| Pinnbet | istekao SSL sertifikat (njihov problem) |
+| MaxBet, Soccer, MerkurXtip, Oktagon, Brazilbet, Betole, 365.rs | rade - isti softver ("ibet"), jedan citac, svi sportovi |
+| Admiral, Superbet, Balkanbet | rade - SAMO fudbal (1X2; Balkanbet i dupla sansa). Ostali sportovi cekaju proveru naziva igara (`PROVERENI_SPORTOVI`) |
+| Mozzart, Meridian | zastita (Cloudflare / token sesije) - NE zaobilaziti. U aplikaciji su "proveri rucno" |
+| Volcano (xtreme.bet), Ambassador + Tasbet (Evona API), Starbet, King | javno dostupni, jos nisu dodati |
+| 1xBet, Betwinner, Vivatbet, bet365 | ne mogu se citati obicnim putem |
+| Pinnbet | nije na spisku licenciranih; Lutrija nema sport; MrBit samo kazino |
 
-API (isti softver): `GET {sajt}/restapi/offer/sr/sport/{S|T|TT|H|HB|V|B}/mob?annex=0&desktopVersion=2.39.7&locale=sr`
+API "ibet": `GET {sajt}/restapi/offer/sr/sport/{S|T|TT|H|HB|V|B}/mob?annex=0&desktopVersion=2.39.7&locale=sr`
 (MaxBet: `annex=3&desktopVersion=1.2.1.10`). Jedan zahtev = ceo sport. Polje `esMatches`;
 kvote u `odds` {kod: kvota}, kod Soccer-a `betMap[kod]["NULL"]["ov"]`. Iskljuciti `live`, `blocked`, zapocete.
 Sportovi: S fudbal, B kosarka, T tenis, H hokej, HB rukomet, V odbojka, TT stoni tenis (ES, F prazni).
+- Admiral: `srboffer.admiralbet.rs/api/offer/getWebEventsSelections` + zaglavlja `Language: sr-Latn`, `OfficeId: 138`
+  (bez njih vraca []). Betradar u `externalEventId` "sr:match:N" (samo ~pola meceva). `dateTime` je UTC bez "Z".
+- Superbet: `production-superbet-offer-rs.freetls.fastly.net/.../subscription/sr-Latn-RS/prematch` je TOK (SSE) -
+  cita se prva poruka (ceo snimak) pa se veza zatvara. Datumi zaokruzeni na sat, inace 400.
+- Balkanbet (NSoft): `sports-sm-distribution-api.de-2.nsoftcdn.com/api/v1/events`, skraceni kljucevi (`_mapping`),
+  `rootEventId` = Betradar (provereno: 684/702 poklapanja). Market 6 = 1X2, 368 = 1X/12/X2.
+- Isti Betradar ID sa razlicitim vremenom pocetka (>30 min) se izbacuje iz poredjenja (`pretraga._isto_vreme`).
 
 ### Kodovi igara (isti na sva 4 sajta)
 Potvrdjeno: 1/2/3 = 1/X/2 (bez neresenog: 1 i 3 = pobednik); 7=1X, 8=12, 9=X2.
@@ -106,6 +114,8 @@ Nepotvrdjeno: 22, 24, 2xx, 5xxxx... Kosarka jos nije ukljucena (nema proverenih 
 - Zajednickih utakmica pre pocetka: ~700 fudbal, ~110 stoni tenis, ~25 tenis, desetine ostalo.
 
 ## 7. Sledeci koraci
-1. Analizirati prvu noc (`podaci/arbitraze.jsonl`, jutarnji izvestaj).
-2. Preko Chrome-a (ekstenzija Claude in Chrome): Admiral, Superbet, Balkanbet, pa Mozzart/Meridian.
-3. Potvrditi nazive ostalih igara na sajtu (golovi, GG/NG, hendikep, kosarka) i dodati u `igre.py`.
+1. Pustiti aplikaciju sa 10 kladionica i analizirati `podaci/arbitraze.jsonl` i `podaci/ciklusi.jsonl`.
+2. Proveriti nazive igara za ostale sportove na Admiral/Superbet/Balkanbet (tenis, hokej...) pa prosiriti `PROVERENI_SPORTOVI`.
+3. Dodati Ambassador + Tasbet (isti Evona API), pa Volcano, Starbet, King.
+4. Potvrditi nazive ostalih igara (golovi sa granicom - Admiral ih jasno imenuje, GG/NG, hendikep, kosarka) i dodati u `igre.py`.
+5. Nov izgled stranice za pocetnike (predlog dat, ceka "kreni").

@@ -52,6 +52,12 @@ input.k { width: 90px; text-align: right; }
 .pos { color: var(--green); font-weight: 600; } .neg { color: var(--red); font-weight: 600; }
 .log { font: 12px/1.5 ui-monospace, Consolas, monospace; color: var(--muted); max-height: 200px; overflow: auto; white-space: pre; }
 .hidden { display: none; }
+.proveri { background: var(--yellow-bg); border-radius: 8px; padding: 10px 12px; margin-top: 10px; font-size: 13px; }
+.proveri p { margin: 4px 0; } .proveri ul { margin: 4px 0; padding-left: 20px; }
+.linkovi { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.linkovi a { padding: 3px 9px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--text); text-decoration: none; font-size: 12px; }
+.linkovi a:hover { border-color: var(--accent); }
+.linkovi span { padding: 3px 9px; border-radius: 99px; background: var(--panel); color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -89,8 +95,13 @@ input.k { width: 90px; text-align: right; }
   <section id="tab-kalk" class="hidden">
     <div class="card">
       <h3 id="k-naslov">Kalkulator uloga</h3>
-      <p class="muted" style="margin:4px 0 12px">Upiši kvote za ishode koji zajedno pokrivaju sve mogućnosti (npr. 1, X, 2).
-        Klikni <b>Raspodeli</b> da dobiješ idealne uloge, ili sam menjaj uloge i odmah vidi šta dobijaš.</p>
+      <div class="explain" style="margin:4px 0 12px">
+        <p><b>Kako se koristi:</b></p>
+        <p>1. Za svaki ishod upiši <b>kladionicu</b> i <b>kvotu</b> koju vidiš na sajtu. Ishodi zajedno moraju pokriti SVE mogućnosti (npr. 1, X, 2 – ili 1 i X2).</p>
+        <p>2. Upiši koliko ukupno hoćeš da uložiš i klikni <b>Raspodeli</b> – dobićeš koliko da staviš na svaki ishod.</p>
+        <p>3. Ako već znaš ulog za jedan ishod (npr. kladionica ti dozvoljava najviše 500), upiši ga u taj red i klikni <b>📌</b> – ostali ulozi se računaju prema njemu.</p>
+      </div>
+      <datalist id="sve-kladionice"></datalist>
       <div class="scroll"><table>
         <thead><tr><th>Ishod</th><th>Kladionica</th><th class="num">Kvota</th><th class="num">Ulog</th>
           <th class="num">Isplata ako prođe</th><th class="num">Profit ako prođe</th><th></th></tr></thead>
@@ -135,7 +146,7 @@ function objasnjenje(a, ulog) {
   const ulozi = raspodeli(kvote, ulog, 1);
   const ukupno = ulozi.reduce((s, x) => s + x, 0);
   const zbirTekst = a.ishodi.map((i) => `1/${f2(i.kvota)}`).join(" + ");
-  let html = `<p><b>Zašto je ovo arbitraža:</b> igre „${a.ishodi.map((i) => esc(i.naziv)).join("“, „")}“ zajedno pokrivaju sve moguće ishode.
+  let html = `<p><b>${a.zbir < 1 ? "Zašto je ovo arbitraža" : "Kako se računa"}:</b> igre „${a.ishodi.map((i) => esc(i.naziv)).join("“, „")}“ zajedno pokrivaju sve moguće ishode.
     Zbir ${zbirTekst} = <b>${a.zbir.toFixed(4)}</b>${a.zbir < 1 ? " što je <b>manje od 1</b>, pa je zarada ista bez obzira na ishod." : " – veće od 1, pa još nije profitabilno."}</p>`;
   html += `<p><b>Šta igraš (ukupno ${ukupno.toFixed(0)}):</b></p><table><tr><th>Ishod</th><th>Kladionica</th><th class="num">Kvota</th><th class="num">Ulog</th><th class="num">Ako prođe dobijaš</th><th class="num">Profit</th></tr>`;
   a.ishodi.forEach((i, n) => {
@@ -146,6 +157,22 @@ function objasnjenje(a, ulog) {
   return html + "</table>";
 }
 
+function gdeProveriti(a) {
+  if (!a.potrebno) return "";
+  const stavke = a.ishodi.map((i, n) => a.potrebno[n]
+    ? `<li>za <b>${esc(i.naziv)}</b> kvotu <b>veću od ${f2(a.potrebno[n])}</b> <span class="muted">(sad najbolja ${f2(i.kvota)} na ${esc(i.naziv_sajta)})</span></li>` : "").join("");
+  const rucno = a.proveri_jos.filter((x) => x.url);
+  const nema = a.proveri_jos.filter((x) => !x.url);
+  return `<div class="proveri">
+    <p><b>🔎 Fali još ${Math.abs(a.profit_proc).toFixed(2)}% do arbitraže.</b> Postaće arbitraža ako na nekoj drugoj kladionici nađeš (dovoljno je jedno):</p>
+    <ul>${stavke}</ul>
+    <p><b>Proveri ručno</b> (ove aplikacija ne čita):</p>
+    <div class="linkovi">${rucno.map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener" title="${esc(x.zasto)}">${esc(x.naziv)} ↗</a>`).join("")}</div>
+    ${nema.length ? `<p class="muted" style="margin-top:8px">Ove čitamo, ali nemaju ovu utakmicu (ili nisu pročitane): ${nema.map((x) => esc(x.naziv)).join(", ")}</p>` : ""}
+    <p class="muted" style="margin-top:8px">Kad nađeš bolju kvotu: klikni <b>Otvori u kalkulatoru</b>, promeni kladionicu i kvotu u tom redu i klikni Raspodeli.</p>
+  </div>`;
+}
+
 function karticaArb(a, vrsta) {
   const tag = vrsta === "arb" ? `<span class="tag g">+${a.profit_proc.toFixed(2)}%</span>` : `<span class="tag y">${a.profit_proc.toFixed(2)}%</span>`;
   return `<div class="card ${vrsta}">
@@ -154,6 +181,7 @@ function karticaArb(a, vrsta) {
       <div>${tag} <button class="sec" data-kalk="${esc(a.kljuc)}">Otvori u kalkulatoru</button></div>
     </div>
     <div class="explain">${objasnjenje(a, S.ulog)}</div>
+    ${vrsta === "skoro" ? gdeProveriti(a) : `<p class="muted" style="margin:8px 0 0">⚠️ Pre uplate proveri kvote na sajtu – mogu se promeniti svakog trenutka.</p>`}
   </div>`;
 }
 
@@ -208,12 +236,13 @@ function crtajKalk() {
     const isplata = (+r.ulog || 0) * (+r.kvota || 0), p = isplata - ukupno;
     return `<tr>
       <td><input data-n="${n}" data-p="naziv" value="${esc(r.naziv)}" style="width:80px"></td>
-      <td><input data-n="${n}" data-p="sajt" value="${esc(r.sajt)}" style="width:110px"></td>
+      <td><input data-n="${n}" data-p="sajt" value="${esc(r.sajt)}" list="sve-kladionice" placeholder="kladionica" style="width:120px"></td>
       <td class="num"><input class="k" data-n="${n}" data-p="kvota" type="number" step="0.01" value="${r.kvota}"></td>
       <td class="num"><input class="k" data-n="${n}" data-p="ulog" type="number" step="1" value="${r.ulog}"></td>
       <td class="num">${isplata.toFixed(2)}</td>
       <td class="num ${p >= 0 ? "pos" : "neg"}">${p >= 0 ? "+" : ""}${p.toFixed(2)}</td>
-      <td><button class="sec" data-del="${n}">✕</button></td></tr>`;
+      <td style="white-space:nowrap"><button class="sec" data-fix="${n}" title="Zadrži ovaj ulog, ostale izračunaj prema njemu">📌</button>
+        <button class="sec" data-del="${n}" title="Obriši red">✕</button></td></tr>`;
   }).join("");
   document.querySelectorAll("#k-redovi input").forEach((inp) => inp.onchange = () => {
     const r = kalk[inp.dataset.n], p = inp.dataset.p;
@@ -221,6 +250,7 @@ function crtajKalk() {
     crtajKalk();
   });
   document.querySelectorAll("[data-del]").forEach((b) => b.onclick = () => { kalk.splice(+b.dataset.del, 1); crtajKalk(); });
+  document.querySelectorAll("[data-fix]").forEach((b) => b.onclick = () => odUloga(+b.dataset.fix));
 
   const kvote = kalk.map((r) => +r.kvota).filter((k) => k > 1);
   let tekst = "";
@@ -246,6 +276,15 @@ function raspodeliKalk() {
   kalk.forEach((r, n) => r.ulog = ulozi[n]);
   crtajKalk();
 }
+// jedan ulog je zadat (npr. limit kladionice) - ostali tako da isplata bude ista
+function odUloga(n) {
+  const r = kalk[n], zaok = +$("k-zaok").value;
+  if (!(r.kvota > 1) || !(r.ulog > 0)) return crtajKalk();
+  const isplata = r.ulog * r.kvota;
+  kalk.forEach((x, i) => { if (i !== n && x.kvota > 1) x.ulog = Math.round(isplata / x.kvota / zaok) * zaok; });
+  $("k-ukupno").value = kalk.reduce((s, x) => s + (+x.ulog || 0), 0).toFixed(zaok < 1 ? 2 : 0);
+  crtajKalk();
+}
 $("k-raspodeli").onclick = raspodeliKalk;
 $("k-dodaj").onclick = () => { kalk.push({ naziv: "", sajt: "", kvota: 2, ulog: 0 }); crtajKalk(); };
 kalk = [{ naziv: "1", sajt: "", kvota: 2.6, ulog: 0 }, { naziv: "X", sajt: "", kvota: 3.6, ulog: 0 }, { naziv: "2", sajt: "", kvota: 3.4, ulog: 0 }];
@@ -255,7 +294,7 @@ raspodeliKalk();
 $("osvezi").onclick = async () => {
   const r = await (await fetch("/api/osvezi", { method: "POST" })).json();
   if (!r.ok) $("status").textContent = r.za_sekundi ? `Može ponovo za ${r.za_sekundi} s (zaštita od blokade)` : "Osvežavanje je već u toku…";
-  else $("status").textContent = "Povlačim sveže kvote (oko 1 min)…";
+  else $("status").textContent = "Povlačim sveže kvote (oko 2–3 min)…";
 };
 
 async function ucitaj() {
@@ -271,6 +310,9 @@ async function ucitaj() {
       $("status").textContent = `Osveženo ${new Date(S.osvezeno * 1000).toLocaleTimeString("sr-RS")} · sledeće za ~${za} min · ${S.mecevi.length} zajedničkih utakmica`;
     }
     if (promena) {
+      if (!$("sve-kladionice").options.length) {
+        [...Object.values(S.imena_sajtova), ...S.rucno.map((x) => x.naziv)].forEach((n) => $("sve-kladionice").append(new Option(n)));
+      }
       if ($("f-sport").options.length === 1) {
         [...new Set(S.mecevi.map((m) => m.sport + "|" + m.sport_naziv))].forEach((x) => {
           const [k, n] = x.split("|"); $("f-sport").add(new Option(n, k));

@@ -21,7 +21,7 @@ load_dotenv()
 
 import telegram  # noqa: E402  (posle load_dotenv da procita .env)
 from igre import SPORTOVI  # noqa: E402
-from kladionice import SAJTOVI, Citac  # noqa: E402
+from kladionice import RUCNO, SAJTOVI, Citac  # noqa: E402
 from pracenje import Pracenje, upisi_ciklus  # noqa: E402
 from pretraga import uporedi  # noqa: E402
 
@@ -139,6 +139,7 @@ def api_stanje():
     teski = {"mecevi": None, "arbitraze": None, "skoro": None} if vec_ima else {}
     return jsonify({**stanje, **teski, "poruke": list(stanje["poruke"]),
                     "imena_sajtova": {k: v["naziv"] for k, v in SAJTOVI.items()},
+                    "rucno": RUCNO,
                     "ulog": ULOG, "min_razmak": MIN_RAZMAK, "telegram": telegram.podeseno()})
 
 
