@@ -15,10 +15,11 @@ def podeseno():
     return bool(os.getenv("TELEGRAM_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))
 
 
-def _api(metod, timeout=15, **podaci):
+def _api(metod, cekanje=15, **podaci):
+    """cekanje = koliko Python ceka odgovor (NE Telegramov parametar 'timeout')."""
     try:
         r = requests.post(f"https://api.telegram.org/bot{os.getenv('TELEGRAM_TOKEN')}/{metod}",
-                          json=podaci, timeout=timeout)
+                          json=podaci, timeout=cekanje)
         return r.json() if r.ok else None
     except (requests.RequestException, ValueError):
         return None
@@ -72,7 +73,7 @@ def prijem(obradi_poruku, obradi_klik, log=print):
         podaci = {"timeout": 25, "allowed_updates": ["message", "callback_query"]}
         if pomeraj:
             podaci["offset"] = pomeraj
-        r = _api("getUpdates", timeout=35, **podaci)
+        r = _api("getUpdates", cekanje=35, **podaci)
         if not r or not r.get("ok"):
             time.sleep(10)
             continue
