@@ -47,7 +47,9 @@ Korisnik se boji da mu kladionice ne blokiraju IP adresu.
 - **Aplikacija** radi ceo dan dok je terminal otvoren (povlaci, racuna, belezi).
   Bez automatskog pokretanja sa Windows-om - korisnik to NE zeli.
 - **Telegram salje SAMO:** novu arbitrazu (odmah, u bilo koje doba), jutarnji izvestaj u 07:00
-  (sa SVEZIM kvotama) i upozorenje ako kladionica odbije zahtev (403/429).
+  (sa SVEZIM kvotama i stanjem simulacije), upozorenje ako kladionica odbije zahtev (403/429),
+  pitanje za rezultat utakmice iz simulacije (NE nocu 01-07h; dogovoreno 2026-11-04) i odgovore na komande.
+  Bot prihvata komande/klikove samo iz TELEGRAM_CHAT_ID.
   "Nestala", "pokrenuto" i slicno ide samo u zapisnik.
 - **Claude** pravi i popravlja aplikaciju i analizira `podaci/arbitraze.jsonl` posle testa.
   Claude NE radi nocu sam; ideja sa Grok botom koji naredjuje Claude-u je odbacena (skupo, nepouzdano, nepotrebno).
@@ -80,7 +82,10 @@ Zapis arbitraza: `podaci/arbitraze.jsonl` (dogadjaji: nova / nestala / jutarnji_
 - `arbitraza.py` - matematika (zbir 1/kvota, raspodela uloga sa zaokruzivanjem)
 - `pracenje.py` - zivotni vek arbitraza, log, Telegram, jutarnji izvestaj
 - `telegram.py`, `telegram_podesi.py` - slanje poruka / jednokratno podesavanje
-- `app.py` - Flask server + pozadinska petlja; `static/index.html` - UI (arbitraze, sve kvote, kalkulator)
+- `simulacija.py` - zamisljeni balans: svaka nova arbitraza se "uplati" sa SIM_ULOG (100.000), rezultat se upisuje
+  na stranici ili dugmetom na Telegramu; dnevnik `podaci/simulacija.jsonl` (tiket/nestala/pitano/rezultat)
+- `app.py` - Flask server + pozadinska petlja + Telegram bot (komande /stanje /arbitraze /otvoreni /pomoc,
+  dugmad za rezultat); `static/index.html` - UI (arbitraze, sve kvote, kalkulator, simulacija)
 
 ### Kladionice (stanje 2026-11-04, spisak licenciranih: uis.gov.rs/rsc/spisakpnaziv)
 | Kladionica | Stanje |

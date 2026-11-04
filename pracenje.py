@@ -30,15 +30,32 @@ def _vreme(ms):
     return datetime.fromtimestamp(ms / 1000).strftime("%d.%m. %H:%M")
 
 
+IKONE = {"S": "⚽", "B": "🏀", "T": "🎾", "TT": "🏓", "H": "🏒", "HB": "🤾", "V": "🏐"}
+
+
+def _din(x, znak=False):
+    """12345.6 -> '12.346' (srpski zapis hiljada)"""
+    return (f"{x:+,.0f}" if znak else f"{x:,.0f}").replace(",", ".")
+
+
+def _html(s):
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def opis_za_poruku(a, ulog):
+    """Pregledna poruka: utakmica, pa tabela 'ishod  kvota  kladionica  ulog'."""
     kvote = [i["kvota"] for i in a["ishodi"]]
-    ulozi, ukupno, min_isplata = rasporedi_ulog(kvote, ulog)
-    redovi = [f"• <b>{i['naziv']}</b> @ {i['kvota']:.2f} na <b>{i['naziv_sajta']}</b> - ulog {u:.0f}"
-              for i, u in zip(a["ishodi"], ulozi)]
-    return (f"{a['sport_naziv']}: <b>{a['naziv']}</b> ({_vreme(a['pocetak_ms'])})\n"
-            f"Igra: {a['igra']}\n" + "\n".join(redovi) +
-            f"\nUlozeno {ukupno:.0f} → najmanja isplata {min_isplata:.0f} "
-            f"(profit {min_isplata - ukupno:+.0f})")
+    ulozi, ukupno, min_isplata = rasporedi_ulog(kvote, ulog, 10 if ulog >= 10_000 else 1)
+    sport = a.get("mec_id", "").split("-")[0]
+    sirina = max(len(i["naziv_sajta"]) for i in a["ishodi"])
+    tabela = "\n".join(f"{i['naziv']:<3}{i['kvota']:>6.2f}  {i['naziv_sajta']:<{sirina}}  {_din(u):>7}"
+                       for i, u in zip(a["ishodi"], ulozi))
+    return (f"{IKONE.get(sport, '🎯')} <b>{_html(a['naziv'])}</b>\n"
+            f"{a['sport_naziv']} · {_html(a['liga'])}\n"
+            f"🕒 {_vreme(a['pocetak_ms'])} · {a['igra']}\n"
+            f"<pre>{_html(tabela)}</pre>\n"
+            f"💰 Uložiš {_din(ukupno)} → dobijaš najmanje {_din(min_isplata)} "
+            f"(<b>{_din(min_isplata - ukupno, True)}</b>)")
 
 
 class Pracenje:
@@ -54,7 +71,9 @@ class Pracenje:
             f.write(json.dumps({"vreme": datetime.now().isoformat(timespec="seconds"),
                                 "dogadjaj": dogadjaj, **podaci}, ensure_ascii=False) + "\n")
 
-    def azuriraj(self, arbitraze):
+    def azuriraj(self, arbitraze, sim_tiketi=None):
+        """sim_tiketi: {kljuc: tiket} - nove uplate u simulaciji (da poruka to pomene)."""
+        sim_tiketi = sim_tiketi or {}
         sada = time.time()
         vidjene = set()
         for a in arbitraze:
@@ -65,8 +84,12 @@ class Pracenje:
                 self.noc.append(a)
                 self._upisi("nova", **a)
                 self.log(f"NOVA ARBITRAZA {a['profit_proc']:+.2f}%  {a['naziv']}  {a['igra']}")
-                telegram.posalji(f"🟢 <b>ARBITRAZA {a['profit_proc']:+.2f}%</b>\n" +
-                                 opis_za_poruku(a, self.ulog))
+                t = sim_tiketi.get(k)
+                telegram.posalji(
+                    f"🟢 <b>ARBITRAŽA {a['profit_proc']:+.2f}%</b>\n\n" +
+                    opis_za_poruku(a, t["ukupno"] if t else self.ulog) +
+                    (f"\n🎮 Uplaćeno u simulaciji (tiket #{t['broj']})" if t else "") +
+                    "\n⚠️ Pre uplate proveri kvote na sajtu!")
             else:
                 z = self.aktivne[k]
                 z["poslednji"], z["a"] = sada, a
@@ -81,7 +104,7 @@ class Pracenje:
                 # samo u zapisnik - na Telegram idu samo nove arbitraze i jutarnji izvestaj
                 self.log(f"nestala: {z['a']['naziv']} {z['a']['igra']} (trajala ~{trajanje} min)")
 
-    def jutarnji_izvestaj(self, arbitraze_sada, rupe=None):
+    def jutarnji_izvestaj(self, arbitraze_sada, rupe=None, simulacija_tekst=""):
         tekst = [f"☀️ <b>Jutarnji izvestaj</b>\nPreko noci nadjeno arbitraza: {len(self.noc)}"]
         if rupe:
             ukupno = round(sum(r["minuta"] for r in rupe))
@@ -93,6 +116,8 @@ class Pracenje:
                 tekst.append(f"\n🟢 <b>{a['profit_proc']:+.2f}%</b> " + opis_za_poruku(a, self.ulog))
         else:
             tekst.append("Trenutno nema aktivnih arbitraza.")
+        if simulacija_tekst:
+            tekst.append("\n" + simulacija_tekst)
         tekst.append("\n⚠️ Pre uplate proveri kvote na sajtu!")
         telegram.posalji("\n".join(tekst))
         self._upisi("jutarnji_izvestaj", nadjeno_noc=len(self.noc), aktivno=len(arbitraze_sada),
