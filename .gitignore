@@ -1,0 +1,21 @@
+# Tajne (Telegram token)
+.env
+
+# Podaci i logovi koje aplikacija pravi
+podaci/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editori i lokalna Claude podesavanja
+.vscode/
+.idea/
+.claude/settings.local.json
+
+# Windows
+Thumbs.db
+desktop.ini
