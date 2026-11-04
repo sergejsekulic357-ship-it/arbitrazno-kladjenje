@@ -25,10 +25,23 @@ from kladionice import SAJTOVI, Citac  # noqa: E402
 from pracenje import Pracenje  # noqa: E402
 from pretraga import uporedi  # noqa: E402
 
-INTERVAL = int(float(os.getenv("INTERVAL_MIN", "5")) * 60)
+INTERVAL_DAN = int(float(os.getenv("INTERVAL_MIN", "5")) * 60)
+INTERVAL_NOC = int(float(os.getenv("INTERVAL_NOC_MIN", "15")) * 60)
+NOC_OD = os.getenv("NOC_OD", "01:00")   # od tad do NOC_DO proverava rede
+NOC_DO = os.getenv("NOC_DO", "07:00")
 MIN_RAZMAK = 120                       # rucno osvezavanje najcesce na 2 min
 ULOG = float(os.getenv("ULOG", "1000"))
 JUTRO = os.getenv("JUTARNJI_IZVESTAJ", "07:00")
+
+
+def interval():
+    """Nocu se kvote retko menjaju - proveravamo rede, da ne opterecujemo sajtove."""
+    sat = datetime.now().strftime("%H:%M")
+    if NOC_OD <= NOC_DO:
+        noc = NOC_OD <= sat < NOC_DO
+    else:  # npr. 23:00 - 07:00, preko ponoci
+        noc = sat >= NOC_OD or sat < NOC_DO
+    return INTERVAL_NOC if noc else INTERVAL_DAN
 
 stanje = {"mecevi": [], "arbitraze": [], "skoro": [], "osvezeno": None, "sledece": None,
           "u_toku": False, "sajtovi": {}, "zahteva": 0, "poruke": deque(maxlen=60)}
@@ -82,13 +95,13 @@ def petlja():
             poslednji_izvestaj = danas
             log("poslat jutarnji izvestaj")
 
-        stanje["sledece"] = poslednji + INTERVAL
+        stanje["sledece"] = poslednji + interval()
         while True:
             if osvezi_sad.wait(timeout=5):
                 osvezi_sad.clear()
                 if time.time() - poslednji >= MIN_RAZMAK:
                     break
-            if time.time() - poslednji >= INTERVAL:
+            if time.time() - poslednji >= interval():
                 break
             if (datetime.now().strftime("%H:%M") >= JUTRO
                     and poslednji_izvestaj != datetime.now().strftime("%Y-%m-%d")):
@@ -124,9 +137,9 @@ def api_osvezi():
 
 if __name__ == "__main__":
     log(f"Pokrecem: {len(SAJTOVI)} kladionice, {len(SPORTOVI)} sportova, osvezavanje na "
-        f"{INTERVAL // 60} min, jutarnji izvestaj u {JUTRO}, Telegram: "
+        f"{INTERVAL_DAN // 60} min (nocu {NOC_OD}-{NOC_DO} na {INTERVAL_NOC // 60} min), "
+        f"jutarnji izvestaj u {JUTRO}, Telegram: "
         f"{'DA' if telegram.podeseno() else 'NE (nije podesen)'}")
-    telegram.posalji("▶️ Pracenje arbitraza pokrenuto.")
     threading.Thread(target=petlja, daemon=True).start()
     threading.Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
     app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)

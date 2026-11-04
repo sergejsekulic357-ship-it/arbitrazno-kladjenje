@@ -13,6 +13,8 @@ import time
 
 import requests
 
+import telegram
+
 SAJTOVI = {
     "maxbet": {"naziv": "MaxBet", "url": "https://www.maxbet.rs",
                "param": "annex=3&desktopVersion=1.2.1.10&locale=sr"},
@@ -76,6 +78,9 @@ class Citac:
         if r.status_code in (403, 429):
             self.pauziran_do[sajt] = time.time() + KAZNENA_PAUZA
             self.log(f"{s['naziv']}: odgovor {r.status_code} - PAUZA 30 min za ovaj sajt")
+            # jedino upozorenje osim arbitraza - bitno zbog moguce blokade
+            telegram.posalji(f"⚠️ {s['naziv']} je odbio zahtev ({r.status_code}). "
+                             f"Pauziram ga 30 min da ne dodje do blokade.")
             return None
         if not r.ok:
             self.log(f"{s['naziv']} {sport}: greska {r.status_code}")

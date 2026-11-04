@@ -23,7 +23,7 @@ Korisnik se boji da mu kladionice ne blokiraju IP adresu.
 - **Pre svakog novog talasa zahteva reci koliko zahteva i ka kojim sajtovima, pa sacekaj "ok".**
 - Analizu radi nad **vec sacuvanim fajlovima**, ne salji iste zahteve ponovo.
 - Pauza izmedju zahteva (>= 2 s u aplikaciji, 5 s pri istrazivanju).
-- Interval pracenja **5 min** (dogovoreno za prvu noc); smanjivati samo uz dogovor.
+- Interval pracenja: **danju 5 min, nocu (01-07h) 15 min**; smanjivati samo uz dogovor.
 - Rucno "Osvezi" najcesce na 2 min.
 - Na 403/429 **odmah stani** za taj sajt (aplikacija pravi pauzu 30 min) i javi korisniku.
 - **Nikakvo zaobilazenje zastita:** bez rotacije IP, proxy-ja, resavanja Cloudflare/captcha.
@@ -44,8 +44,11 @@ Korisnik se boji da mu kladionice ne blokiraju IP adresu.
 
 ## 4. Podela posla
 
-- **Aplikacija** radi nocu (povlaci, racuna, belezi, salje Telegram, jutarnji izvestaj u 07:00
-  sa SVEZIM kvotama - ne salje stare).
+- **Aplikacija** radi ceo dan dok je terminal otvoren (povlaci, racuna, belezi).
+  Bez automatskog pokretanja sa Windows-om - korisnik to NE zeli.
+- **Telegram salje SAMO:** novu arbitrazu (odmah, u bilo koje doba), jutarnji izvestaj u 07:00
+  (sa SVEZIM kvotama) i upozorenje ako kladionica odbije zahtev (403/429).
+  "Nestala", "pokrenuto" i slicno ide samo u zapisnik.
 - **Claude** pravi i popravlja aplikaciju i analizira `podaci/arbitraze.jsonl` posle testa.
   Claude NE radi nocu sam; ideja sa Grok botom koji naredjuje Claude-u je odbacena (skupo, nepouzdano, nepotrebno).
 - **Korisnik** proverava kvote na sajtu i odlucuje sta igra.

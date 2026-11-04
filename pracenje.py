@@ -69,9 +69,8 @@ class Pracenje:
                 trajanje = round((sada - z["prvi"]) / 60, 1)
                 self._upisi("nestala", kljuc=k, naziv=z["a"]["naziv"], igra=z["a"]["igra"],
                             trajanje_min=trajanje, max_profit_proc=z["max"])
+                # samo u zapisnik - na Telegram idu samo nove arbitraze i jutarnji izvestaj
                 self.log(f"nestala: {z['a']['naziv']} {z['a']['igra']} (trajala ~{trajanje} min)")
-                telegram.posalji(f"⚪ Nestala arbitraza: {z['a']['naziv']} - {z['a']['igra']} "
-                                 f"(trajala oko {trajanje} min)")
 
     def jutarnji_izvestaj(self, arbitraze_sada):
         tekst = [f"☀️ <b>Jutarnji izvestaj</b>\nPreko noci nadjeno arbitraza: {len(self.noc)}"]
